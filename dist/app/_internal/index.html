@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档阅读进度追踪器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background-color: #f8f9ff;
+            border-color: #5a6fd8;
+        }
+
+        .upload-area.dragover {
+            background-color: #e8f2ff;
+            border-color: #4285f4;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .supported-formats {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .format-badge {
+            display: inline-block;
+            background: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 0.8em;
+        }
+
+        .upload-progress {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.8em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .documents-list {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .document-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .document-item:hover {
+            background-color: #f8f9ff;
+        }
+
+        .document-item:last-child {
+            border-bottom: none;
+        }
+
+        .document-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .document-type {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: white;
+        }
+
+        .document-type.pdf {
+            background: #dc3545;
+        }
+
+        .document-type.epub {
+            background: #28a745;
+        }
+
+        .document-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .progress-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .contents-tree {
+            margin-top: 20px;
+        }
+
+        .chapter-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .chapter-item:hover {
+            background: #e9ecef;
+        }
+
+        .chapter-item.completed {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+
+        .chapter-item.level-1 {
+            margin-left: 20px;
+        }
+
+        .chapter-item.level-2 {
+            margin-left: 40px;
+        }
+
+        .chapter-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .chapter-info {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .chapter-type {
+            display: inline-block;
+            background: #17a2b8;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            margin-left: 8px;
+        }
+
+        .chapter-type.page-range {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .progress-bar-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #e9ecef;
+        }
+
+        .progress-bar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .progress-bar-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .progress-bar-actions button {
+            padding: 5px 10px;
+            font-size: 0.8em;
+        }
+
+        .document-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .document-header h2 {
+            margin: 0;
+        }
+
+        .contents-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .file-size-info {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .file-size-large {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .file-size-medium {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .file-size-small {
+            color: #28a745;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+
+            .progress-bar-actions {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .progress-bar-actions button {
+                width: 100%;
+            }
+
+            .document-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 文档阅读进度追踪器</h1>
+            <p>上传PDF或EPUB文档，轻松管理您的阅读进度</p>
+            <p style="font-size: 0.9em; opacity: 0.9;">支持大文件上传（最大1GB）</p>
+        </div>
+
+        <!-- 上传区域 -->
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.epub">
+                <div>
+                    <p>📄 点击上传文档</p>
+                    <p style="color: #666; font-size: 0.9em;">或拖拽文件到此处</p>
+                    <div class="supported-formats">
+                        <span class="format-badge">PDF</span>
+                        <span class="format-badge">EPUB</span>
+                    </div>
+                    <p style="color: #999; font-size: 0.8em; margin-top: 10px;">
+                        💡 支持大文件上传，最大1GB
+                    </p>
+                </div>
+            </div>
+
+            <!-- 上传进度 -->
+            <div class="upload-progress hidden" id="uploadProgress">
+                <h3>📤 文件上传进度</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="uploadProgressFill" style="width: 0%"></div>
+                    <div class="progress-text" id="uploadProgressText">0%</div>
+                </div>
+                <p id="uploadStatus">准备上传...</p>
+            </div>
+        </div>
+
+        <!-- 文档列表 -->
+        <div class="documents-list" id="documentsList">
+            <div class="loading">正在加载文档...</div>
+        </div>
+
+        <!-- 文档详情 -->
+        <div class="progress-section hidden" id="documentDetail">
+            <div class="document-header">
+                <h2 id="documentTitle"></h2>
+                <button class="btn" onclick="showNewProgressModal()">➕ 新建进度条</button>
+            </div>
+
+            <div id="progressBars"></div>
+
+            <div class="contents-tree" id="contentsTree"></div>
+        </div>
+    </div>
+
+    <!-- 新建进度条模态框 -->
+    <div id="newProgressModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('newProgressModal')">&times;</span>
+            <h2>新建阅读进度条</h2>
+            <form id="newProgressForm">
+                <div class="form-group">
+                    <label for="progressName">进度条名称：</label>
+                    <input type="text" id="progressName" placeholder="例如：精读进度、快速阅读等" required>
+                </div>
+                <div class="form-group">
+                    <label for="startChapter">起始章节：</label>
+                    <select id="startChapter" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="endChapter">结束章节：</label>
+                    <select id="endChapter" required></select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn">创建进度条</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('newProgressModal')">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentDocument = null;
+        let currentProgressBar = null;
+        let uploadProgressInterval = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDocuments();
+            setupUpload();
+        });
+
+        // 设置上传功能
+        function setupUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileUpload(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+        }
+
+        // 处理文件上传
+        async function handleFileUpload(file) {
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'epub'].includes(fileExtension)) {
+                showError('请上传PDF或EPUB文件');
+                return;
+            }
+
+            // 检查文件大小
+            const fileSizeMB = file.size / (1024 * 1024);
+            const fileSizeGB = file.size / (1024 * 1024 * 1024);
+
+            if (fileSizeGB > 1) {
+                showError('文件大小超过1GB限制');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showUploadProgress();
+                let sizeText = fileSizeMB >= 100 ? `${fileSizeGB.toFixed(2)} GB` : `${fileSizeMB.toFixed(2)} MB`;
+                updateUploadStatus(`正在上传 ${fileExtension.toUpperCase()} 文件 (${sizeText})...`);
+
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('上传失败');
+                }
+
+                const result = await response.json();
+
+                if (result.doc_id) {
+                    // 开始监控上传进度
+                    startProgressMonitoring(result.doc_id);
+                }
+
+            } catch (error) {
+                hideUploadProgress();
+                showError('上传失败：' + error.message);
+            }
+        }
+
+        // 显示上传进度
+        function showUploadProgress() {
+            document.getElementById('uploadProgress').classList.remove('hidden');
+            document.getElementById('uploadArea').style.display = 'none';
+        }
+
+        // 隐藏上传进度
+        function hideUploadProgress() {
+            document.getElementById('uploadProgress').classList.add('hidden');
+            document.getElementById('uploadArea').style.display = 'block';
+            if (uploadProgressInterval) {
+                clearInterval(uploadProgressInterval);
+                uploadProgressInterval = null;
+            }
+        }
+
+        // 更新上传状态
+        function updateUploadStatus(message, progress = 0) {
+            document.getElementById('uploadStatus').textContent = message;
+            document.getElementById('uploadProgressFill').style.width = progress + '%';
+            document.getElementById('uploadProgressText').textContent = progress + '%';
+        }
+
+        // 开始监控上传进度
+        function startProgressMonitoring(docId) {
+            uploadProgressInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/upload/progress/${docId}`);
+                    const progress = await response.json();
+
+                    if (progress.status === 'completed') {
+                        updateUploadStatus(progress.message, progress.progress);
+                        setTimeout(() => {
+                            hideUploadProgress();
+                            showSuccess('文档上传并处理完成！');
+                            loadDocuments();
+                        }, 2000);
+                    } else if (progress.status === 'error') {
+                        hideUploadProgress();
+                        showError(progress.message);
+                    } else {
+                        updateUploadStatus(progress.message, progress.progress);
+                    }
+                } catch (error) {
+                    console.error('获取进度失败:', error);
+                }
+            }, 1000);
+        }
+
+        // 获取文件大小显示类
+        function getFileSizeClass(fileSizeMB) {
+            if (fileSizeMB >= 500) return 'file-size-large';
+            if (fileSizeMB >= 100) return 'file-size-medium';
+            return 'file-size-small';
+        }
+
+        // 格式化文件大小显示
+        function formatFileSize(fileSizeMB) {
+            if (fileSizeMB >= 1024) {
+                return `${(fileSizeMB / 1024).toFixed(2)} GB`;
+            } else {
+                return `${fileSizeMB.toFixed(2)} MB`;
+            }
+        }
+
+        // 加载文档列表
+        async function loadDocuments() {
+            try {
+                const response = await fetch(`${API_BASE}/documents`);
+                const documents = await response.json();
+
+                const listElement = document.getElementById('documentsList');
+
+                if (documents.length === 0) {
+                    listElement.innerHTML = '<div class="loading">暂无文档，请上传PDF或EPUB文件</div>';
+                    return;
+                }
+
+                listElement.innerHTML = documents.map(doc => {
+                    const fileExtension = doc.filename.split('.').pop().toLowerCase();
+                    const fileType = fileExtension === 'pdf' ? 'PDF' : 'EPUB';
+                    const typeClass = fileExtension === 'pdf' ? 'pdf' : 'epub';
+                    const fileSizeMB = doc.file_size_mb || 0;
+                    const sizeClass = getFileSizeClass(fileSizeMB);
+                    const sizeText = formatFileSize(fileSizeMB);
+                    const fileSizeInfo = fileSizeMB > 0 ?
+                        `<div class="file-size-info ${sizeClass}">文件大小: ${sizeText}</div>` : '';
+
+                    return `
+                        <div class="document-item" onclick="loadDocument('${doc.id}')">
+                            <div class="document-title">
+                                <span class="document-type ${typeClass}">${fileType}</span>
+                                ${doc.filename}
+                            </div>
+                            <div class="document-info">
+                                上传时间: ${new Date(doc.upload_time).toLocaleString()}
+                                | 进度条数量: ${doc.progress_bars_count}
+                            </div>
+                            ${fileSizeInfo}
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                showError('加载文档列表失败：' + error.message);
+            }
+        }
+
+        // 加载文档详情
+        async function loadDocument(docId) {
+            try {
+                const response = await fetch(`${API_BASE}/document/${docId}`);
+                const doc = await response.json();
+
+                currentDocument = doc;
+
+                document.getElementById('documentTitle').textContent = doc.original_filename;
+                document.getElementById('documentDetail').classList.remove('hidden');
+
+                renderProgressBars(doc.progress_bars);
+                renderContentsTree(doc.contents);
+
+            } catch (error) {
+                showError('加载文档失败：' + error.message);
+            }
+        }
+
+        // 渲染进度条
+        function renderProgressBars(progressBars) {
+            const container = document.getElementById('progressBars');
+
+            if (progressBars.length === 0) {
+                container.innerHTML = '<p>暂无进度条，请创建一个新的进度条</p>';
+                return;
+            }
+
+            container.innerHTML = progressBars.map(pb => {
+                const totalChapters = pb.end_chapter - pb.start_chapter + 1;
+                const completedChapters = pb.completed_chapters.length;
+                const percentage = Math.round((completedChapters / totalChapters) * 100);
+
+                return `
+                    <div class="progress-bar-item">
+                        <div class="progress-bar-header">
+                            <div class="progress-bar-title">${pb.name}</div>
+                            <div class="progress-bar-actions">
+                                <button class="btn" onclick="viewProgress('${pb.id}')">查看</button>
+                                <button class="btn btn-danger" onclick="deleteProgressBar('${pb.id}')">删除</button>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${percentage}%"></div>
+                            <div class="progress-text">${completedChapters}/${totalChapters} (${percentage}%)</div>
+                        </div>
+                        <div class="document-info">
+                            章节范围: ${pb.start_chapter + 1} - ${pb.end_chapter + 1}
+                            | 创建时间: ${new Date(pb.created_time).toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 渲染目录树
+        function renderContentsTree(contents) {
+            const container = document.getElementById('contentsTree');
+
+            if (contents.length === 0) {
+                container.innerHTML = '<p>未找到目录信息</p>';
+                return;
+            }
+
+            // 统计目录类型
+            const chapterCount = contents.filter(item => item.type === 'chapter').length;
+            const pageRangeCount = contents.filter(item => item.type === 'page_range').length;
+
+            let contentsInfo = '';
+            if (pageRangeCount > 0) {
+                contentsInfo = `
+                    <div class="contents-info">
+                        📊 目录信息：共 ${contents.length} 项
+                        ${chapterCount > 0 ? `| 章节：${chapterCount} 个` : ''}
+                        ${pageRangeCount > 0 ? `| 页码范围：${pageRangeCount} 个` : ''}
+                        ${pageRangeCount > 0 ? '<br>💡 检测到文档缺少目录，已自动生成页码范围作为进度跟踪' : ''}
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <h3>📑 文档目录</h3>
+                ${contentsInfo}
+                ${contents.map((item, index) => {
+                    const typeClass = item.type === 'page_range' ? 'page-range' : 'chapter';
+                    const typeText = item.type === 'page_range' ? '页码范围' : '章节';
+
+                    let pageInfo = `页码: ${item.page}`;
+                    if (item.type === 'page_range' && item.end_page) {
+                        pageInfo = `页码: ${item.start_page}-${item.end_page}`;
+                    }
+
+                    return `
+                        <div class="chapter-item level-${item.level}" id="chapter-${item.id}" onclick="toggleChapter('${item.id}')">
+                            <div class="chapter-title">
+                                ${item.title}
+                                <span class="chapter-type ${typeClass}">${typeText}</span>
+                            </div>
+                            <div class="chapter-info">${pageInfo}</div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+        }
+
+        // 查看进度
+        function viewProgress(progressId) {
+            const progressBar = currentDocument.progress_bars.find(pb => pb.id === progressId);
+            if (!progressBar) return;
+
+            currentProgressBar = progressBar;
+
+            // 更新目录显示
+            const chapters = currentDocument.contents;
+            chapters.forEach((chapter, index) => {
+                const element = document.getElementById(`chapter-${chapter.id}`);
+                if (element) {
+                    // 重置样式
+                    element.classList.remove('completed');
+                    element.style.display = 'block';
+
+                    // 检查是否在范围内
+                    if (index >= progressBar.start_chapter && index <= progressBar.end_chapter) {
+                        if (progressBar.completed_chapters.includes(chapter.id)) {
+                            element.classList.add('completed');
+                        }
+                    } else {
+                        element.style.display = 'none';
+                    }
+                }
+            });
+
+            showSuccess(`正在查看进度条: ${progressBar.name}`);
+        }
+
+        // 切换章节完成状态
+        async function toggleChapter(chapterId) {
+            if (!currentProgressBar) {
+                showError('请先选择一个进度条');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/document/${currentDocument.id}/progress/${currentProgressBar.id}/toggle/${chapterId}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('更新失败');
+                }
+
+                const updatedProgressBar = await response.json();
+
+                // 更新当前进度条数据
+                const index = currentDocument.progress_bars.findIndex(pb => pb.id === currentProgressBar.id);
+                if (index !== -1) {
+                    currentDocument.progress_bars[index] = updatedProgressBar;
+                    currentProgressBar = updatedProgressBar;
+                }
+
+                // 重新渲染进度条
+                renderProgressBars(currentDocument.progress_bars);
+
+                // 更新章节显示
+                const element = document.getElementById(`chapter-${chapterId}`);
+                if (element) {
+                    if (updatedProgressBar.completed_chapters.includes(chapterId)) {
+                        element.classList.add('completed');
+                    } else {
+                        element.classList.remove('completed');
+                    }
+                }
+
+            } catch (error) {
+                showError('更新进度失败：' + error.message);
+            }
+        }
+
+        // 显示新建进度条模态框
+        function showNewProgressModal() {
+            if (!currentDocument) {
+                showError('请先选择一个文档');
+                return;
+            }
+
+            const modal = document.getElementById('newProgressModal');
+            const startSelect = document.getElementById('startChapter');
+            const endSelect = document.getElementById('endChapter');
+
+            // 填充章节选项
+            const options = currentDocument.contents.map((chapter, index) => {
+                let displayText = `${index + 1}. ${chapter.title}`;
+                if (chapter.type === 'page_range' && chapter.end_page) {
+                    displayText += ` (${chapter.start_page}-${chapter.end_page}页)`;
+                }
+                return `<option value="${index}">${displayText}</option>`;
+            }).join('');
+
+            startSelect.innerHTML = options;
+            endSelect.innerHTML = options;
+
+            // 设置默认值
+            endSelect.selectedIndex = currentDocument.contents.length - 1;
+
+            modal.style.display = 'block';
+        }
+
+        // 关闭模态框
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 处理新建进度条表单
+        document.getElementById('newProgressForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('progressName').value;
+            const startChapter = parseInt(document.getElementById('startChapter').value);
+            const endChapter = parseInt(document.getElementById('endChapter').value);
+
+            if (startChapter > endChapter) {
+                showError('起始章节不能大于结束章节');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/document/${currentDocument.id}/progress`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        start_chapter: startChapter,
+                        end_chapter: endChapter
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('创建进度条失败');
+                }
+
+                const newProgressBar = await response.json();
+                currentDocument.progress_bars.push(newProgressBar);
+
+                renderProgressBars(currentDocument.progress_bars);
+                closeModal('newProgressModal');
+                showSuccess('进度条创建成功！');
+
+                // 重置表单
+                document.getElementById('newProgressForm').reset();
+
+            } catch (error) {
+                showError('创建进度条失败：' + error.message);
+            }
+        });
+
+        // 删除进度条
+        async function deleteProgressBar(progressId) {
+            if (!confirm('确定要删除这个进度条吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/document/${currentDocument.id}/progress/${progressId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('删除失败');
+                }
+
+                // 从当前文档中移除进度条
+                currentDocument.progress_bars = currentDocument.progress_bars.filter(pb => pb.id !== progressId);
+
+                // 如果删除的是当前查看的进度条，清空选择
+                if (currentProgressBar && currentProgressBar.id === progressId) {
+                    currentProgressBar = null;
+                    // 重新显示所有章节
+                    currentDocument.contents.forEach(chapter => {
+                        const element = document.getElementById(`chapter-${chapter.id}`);
+                        if (element) {
+                            element.style.display = 'block';
+                            element.classList.remove('completed');
+                        }
+                    });
+                }
+
+                renderProgressBars(currentDocument.progress_bars);
+                showSuccess('进度条删除成功！');
+
+            } catch (error) {
+                showError('删除进度条失败：' + error.message);
+            }
+        }
+
+        // 显示加载状态
+        function showLoading(message) {
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.innerHTML = `<div class="loading">${message}</div>`;
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.firstChild);
+
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 8000);
+        }
+
+        // 显示成功信息
+        function showSuccess(message) {
+            const container = document.querySelector('.container');
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = message;
+            container.insertBefore(successDiv, container.firstChild);
+
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
+
+               // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
